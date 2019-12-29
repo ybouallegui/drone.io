@@ -1,0 +1,58 @@
+version: '3.5'
+
+services:
+  nginx:
+    image: nginx:1.17-alpine
+    restart: on-failure
+    volumes:
+     - ./nginx/www:/var/www
+     - ./nginx/conf.d:/etc/nginx/conf.d
+     - ./nginx/ssl:/etc/ssl
+    ports:
+      - 80:80
+      - 443:443
+
+  drone-server:
+    container_name: drone
+    image: drone/drone:1.2.1
+    ports:
+      - 8000:80
+      - 9000:443
+    networks:
+      - drone
+    volumes:
+      - ./drone:/data
+    env_file:
+      - ./drone.env
+    restart: always
+
+  drone-agent:
+    image: drone/agent:1.2.1
+    command: agent
+    restart: always
+    depends_on:
+      - drone-server
+    networks:
+      - drone
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ./drone.env
+
+  drone-runner-docker:
+    image: drone/drone-runner-docker:1
+    command: agent
+    restart: always
+    depends_on:
+      - drone-server
+    ports:
+      - 3000:3000      
+    networks:
+      - drone
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ./drone-runner.env
+networks:
+  drone:
+    name: drone_network
